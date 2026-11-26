@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Iterations</title>
+<style>
+  /* the app's type and colours: Geist for the app, Geist Serif for headlines */
+  @font-face { font-family: "Geist"; src: url("/fonts/GeistVF.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+  /* everything handwritten is Caveat (Google Fonts, SIL OFL), shipped here so nothing is fetched */
+  @font-face { font-family: "Caveat"; src: url("/fonts/Caveat.ttf") format("truetype"); font-weight: 400 700; font-display: swap; }
+  @font-face { font-family: "Geist Serif"; src: url("/fonts/GeistSerifVF.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+  :root {
+    --bg: #ffffff; --ink: #151515; --ink-2: #5c5c59; --ink-3: #6e6e6b; --line: rgba(0,0,0,.08); --line-2: rgba(0,0,0,.18);
+    --tile: #f3f3f2; --soft: #f4f4f3; --soft-2: #ececea; --knob: #ffffff; --blue: #2f78f6; --pen: #d8412f; --dot: rgba(0,0,0,.13);
+    --side: rgba(246,246,245,.78); --photo: #ffffff; --shade: rgba(20,20,20,.32);
+    --hl-1: #ffd9e0; --hl-2: #fff0a8; --hl-3: #d5f0c4; --hl-4: #d3e6ff; --tape: rgba(255,226,120,.72);
+    --lift: 0 1px 2px rgba(0,0,0,.10), 0 6px 18px rgba(0,0,0,.10);
+    --ui: "Geist", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    --serif: "Geist Serif", "Iowan Old Style", Georgia, serif;
+    --hand: "Caveat", "Bradley Hand", "Noteworthy", cursive;
+    --mono: "SF Mono", ui-monospace, Menlo, monospace;
+    --side-w: 228px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e0e0e; --ink: #ececea; --ink-2: #a4a4a1; --ink-3: #92928f; --line: rgba(255,255,255,.09); --line-2: rgba(255,255,255,.22);
+      --tile: rgba(236,236,234,.07); --soft: #191918; --soft-2: #222221; --knob: rgba(255,255,255,.14); --pen: #ff6b57; --dot: rgba(255,255,255,.14);
+      --side: rgba(25,25,24,.78); --photo: #f4f4f3; --shade: rgba(0,0,0,.55);
+      --hl-1: #5a2a35; --hl-2: #54481a; --hl-3: #2c4a22; --hl-4: #1f3a5c; --tape: rgba(255,226,120,.5);
+      --lift: 0 1px 2px rgba(0,0,0,.5), 0 8px 22px rgba(0,0,0,.45);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+  /* an app, not a page: nothing selects, nothing drags, the pointer stays an arrow */
+  body { background: var(--bg); color: var(--ink); font: 400 12.5px/15px var(--ui); -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; cursor: default; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
+  button:focus-visible { outline: 3px solid color-mix(in srgb, var(--blue) 55%, transparent); outline-offset: 1px; }
+  img { -webkit-user-drag: none; }
+
+  /* ---- the window: a source list, a toolbar, the canvas ---- */
+  #side { position: fixed; left: 0; top: 0; bottom: 0; width: var(--side-w); z-index: 10; display: flex; flex-direction: column;
+    background: var(--side); backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6); border-right: 1px solid var(--line); padding: 16px 10px 12px; }
+  .brand { padding: 2px 8px 14px; font: 400 19px/23px var(--serif); letter-spacing: -.02em; }
+  .brand span { color: var(--ink-3); }
+  .seg { display: flex; background: var(--soft-2); border-radius: 8px; padding: 2px; margin: 0 4px 14px; }
+  .seg button { flex: 1; height: 24px; border-radius: 6px; font: 500 11.5px/14px var(--ui); color: var(--ink-2); }
+  .seg button[aria-pressed="true"] { background: var(--knob); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.14); }
+  .cap { padding: 6px 8px 5px; font: 500 11px/13px var(--ui); color: var(--ink-3); }
+  #projects { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; margin: 0 -2px; padding: 0 2px; }
+  #projects button { display: flex; width: 100%; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border-radius: 6px; font: 400 12.5px/15px var(--ui); text-align: left; }
+  #projects button:hover { background: var(--line); }
+  #projects button[aria-current="true"] { background: var(--soft-2); }
+  #projects hr { border: 0; border-top: 1px solid var(--line); margin: 6px 8px; }
+  #projects button:active { background: var(--line-2); }
+  #projects b { flex: 1; min-width: 0; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #projects i { font: 400 11px/13px var(--mono); font-style: normal; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  #projects u { width: 6px; height: 6px; border-radius: 50%; background: var(--pen); text-decoration: none; flex: none; }
+  .foot { border-top: 1px solid var(--line); padding: 10px 8px 0; display: flex; flex-direction: column; gap: 10px; }
+  .setting { display: flex; align-items: center; justify-content: space-between; font: 500 12px/15px var(--ui); }
+  .switch { width: 38px; height: 20px; border-radius: 999px; background: var(--soft-2); border: 1px solid var(--line); position: relative; transition: background .15s ease; flex: none; }
+  .switch::after { content: ""; position: absolute; left: 1px; top: 1px; width: 21px; height: 16px; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .18s cubic-bezier(.3,.7,.3,1); }
+  .switch[aria-checked="true"] { background: var(--blue); }
+  .switch[aria-checked="true"]::after { transform: translateX(14px); }
+  .btn { height: 28px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--bg); font: 500 12px/15px var(--ui); padding: 0 10px; }
+  .btn:active { background: var(--soft); }
+
+  #bar { position: fixed; left: var(--side-w); right: 0; top: 0; height: 52px; z-index: 9; display: flex; align-items: center; gap: 12px; padding: 0 14px 0 18px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--line); }
+  #where { flex: 1; min-width: 0; }
+  #where b { display: block; font: 600 13px/16px var(--ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #where span { display: block; font: 400 11px/14px var(--ui); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tools { display: flex; align-items: center; border: 1px solid var(--line-2); border-radius: 8px; height: 28px; overflow: hidden; background: var(--bg); }
+  .tools button { height: 100%; min-width: 30px; padding: 0 9px; font: 500 12px/15px var(--ui); }
+  .tools button + button { border-left: 1px solid var(--line); }
+  .tools button:active { background: var(--soft-2); }
+  .tools button:disabled { color: var(--ink-3); opacity: .5; }
+  #pct { min-width: 50px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+
+  /* the days along the bottom: one bar a day, taller for a busier day */
+  #daybar { position: fixed; left: var(--side-w); right: 0; bottom: 0; z-index: 9; display: flex; align-items: flex-end; gap: 10px; padding: 8px 14px 8px 18px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--line); }
+  #days { flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 2px; height: 50px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding-bottom: 15px; }
+  #days::-webkit-scrollbar { display: none; }
+  .day { flex: none; width: 8px; height: 100%; display: flex; align-items: flex-end; position: relative; }
+  .day i { display: block; width: 100%; border-radius: 2px; background: var(--ink-3); opacity: .38; }
+  .day:hover i { opacity: .8; }
+  .day.on i { opacity: 1; background: var(--blue); }
+  .day.gap { width: 12px; pointer-events: none; }
+  .day b { position: absolute; left: 0; bottom: -15px; font: 400 10.5px/13px var(--mono); color: var(--ink-3); white-space: nowrap; pointer-events: none; }
+  #step { visibility: hidden; margin-bottom: 15px; }
+  body.by-date #step { visibility: visible; }
+
+  /* ---- the canvas: a dotted board, like FigJam ---- */
+  #stage { position: fixed; left: var(--side-w); right: 0; top: 52px; bottom: 0; overflow: hidden; cursor: grab; touch-action: none;
+    background-image: radial-gradient(circle, var(--dot) 1.1px, transparent 1.5px); }
+  #stage.dragging { cursor: grabbing; }
+  #world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #empty { position: fixed; left: var(--side-w); right: 0; top: 52px; bottom: 0; display: none; place-items: center; text-align: center; color: var(--ink-2); padding: 24px; font: 400 19px/26px var(--serif); pointer-events: none; }
+
+  .mast { position: absolute; left: 0; top: 0; }
+  .mast h1 { margin: 0; font: 400 150px/1 var(--serif); letter-spacing: -.035em; white-space: nowrap; }
+  .mast h1 em { font-style: normal; color: var(--ink-3); }
+  .mast .squig { display: block; width: 520px; height: 26px; color: var(--pen); margin: 6px 0 0 8px; }
+  .mast p { margin: 18px 0 0 8px; font: 500 38px/1.2 var(--hand); color: var(--ink-2); max-width: 1400px; }
+
+  .plot { position: absolute; }
+  .plot > header { display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 34px; }
+  .plot h2 { margin: 0; font: 400 72px/1 var(--serif); letter-spacing: -.03em; white-space: nowrap; }
+  .plot header span { font: 400 15px/1 var(--mono); color: var(--ink-3); white-space: nowrap; }
+  .chat { margin-bottom: 70px; padding-bottom: 46px; border-bottom: 1px dashed var(--line-2); }
+  .chat:last-child { border-bottom: 0; }
+  /* a chat off screen costs nothing: the browser skips drawing it until it comes near */
+  .solo .chat { content-visibility: auto; contain-intrinsic-size: auto 900px; }
+  /* a project closed: its name and what stood at the end of each chat. Click to open it alone. */
+  .cover { cursor: pointer; border-radius: 22px; padding: 30px 34px 26px; margin: -30px -34px; transition: background .15s ease; }
+  .cover:hover { background: var(--tile); }
+  .cover .pile { pointer-events: none; }
+  .cover .open { margin: 14px 0 0 6px; font: 600 30px/1.2 var(--hand); color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+  .cover .open svg { width: 60px; height: 40px; color: var(--ink-3); }
+  .chat .head { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
+  .chat h3 { margin: 0; font: 400 34px/1.15 var(--serif); letter-spacing: -.02em; max-width: 1100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    background: linear-gradient(transparent 52%, var(--hl) 52%, var(--hl) 92%, transparent 92%); padding: 0 8px 0 4px; }
+  .chat .when { font: 400 14px/1 var(--mono); color: var(--ink-3); margin: 0 0 26px 4px; }
+  .doodle { color: var(--ink); flex: none; }
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 40px 4px; }
+
+  /* a beat: what the session made, then what you said about it */
+  .beat { display: flex; align-items: flex-start; gap: 6px; }
+  .num { flex: none; width: 46px; height: 46px; display: grid; place-items: center; font: 700 30px/1 var(--hand); position: relative; margin-top: 8px; }
+  .num svg { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--ink-3); }
+  .pile { display: flex; flex-wrap: wrap; align-items: center; flex: none; }
+  .photo { display: block; flex: none; position: relative; background: var(--photo); padding: 5px; border-radius: 3px; box-shadow: var(--lift); transition: transform .18s ease; }
+  .photo img, .photo .frame { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: 1px; background: var(--soft-2);
+    filter: grayscale(.82) contrast(.94); opacity: .9; transition: filter .35s ease, opacity .35s ease; }
+  .photo .frame { overflow: hidden; }
+  .photo iframe { width: 1220px; height: 800px; border: 0; transform: scale(.15); transform-origin: 0 0; pointer-events: none; }
+  .photo:hover { transform: rotate(0deg) scale(1.04) !important; z-index: 3; }
+  .photo:hover img, .photo.alive img, .photo:hover .frame, .photo.alive .frame { filter: none; opacity: 1; transition-duration: .12s; }
+  .photo.yours { border-radius: 14px; padding: 4px; }
+  .photo.yours img { border-radius: 11px; }
+  .tape { position: absolute; left: 50%; top: -9px; width: 54px; height: 18px; margin-left: -27px; background: var(--tape); transform: rotate(-3deg); border-radius: 1px; pointer-events: none; }
+  .pin { position: absolute; left: 50%; top: -11px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle at 35% 30%, #ff9a8c 0 18%, #e0412f 42%, #a8281b 100%); box-shadow: 0 3px 4px rgba(0,0,0,.35); }
+  .cross { position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); color: var(--pen); pointer-events: none; opacity: .9; }
+  .photo:hover .cross { opacity: .25; }
+  .kept { position: absolute; left: 100%; top: 60%; margin-left: 6px; white-space: nowrap; font: 700 25px/1 var(--hand); color: var(--pen); transform: rotate(-6deg); pointer-events: none; }
+  .more { flex: none; margin: 10px 12px; padding: 12px 14px; border-radius: 10px; border: 1.5px dashed var(--line-2); font: 600 24px/1.1 var(--hand); color: var(--ink-2); }
+  .more:hover { background: var(--tile); color: var(--ink); }
+
+  .note { flex: none; width: 240px; margin: 6px 4px 0 10px; }
+  .note .tag { display: inline-block; font: 600 11px/1 var(--ui); letter-spacing: .02em; padding: 4px 8px 4px; border-radius: 999px; background: var(--hl); color: var(--ink); margin-bottom: 6px; }
+  .note p { margin: 0; font: 500 27px/1.12 var(--hand); color: var(--ink); display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; }
+  .note.no p { color: var(--pen); }
+  .note.no .tag { background: var(--pen); color: #fff; }
+  .arrow { flex: none; width: 74px; height: 48px; color: var(--ink-3); margin: 0 2px; }
+  .start, .end { flex: none; position: relative; font: 700 30px/1 var(--hand); padding: 16px 24px; }
+  .start svg { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--pen); }
+  .end { color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+  body.only-no .beat:not(.has-no), body.only-no .beat:not(.has-no) + .arrow, body.only-no .start, body.only-no .start + .note, body.only-no .start + .note + .arrow, body.only-no .end { display: none; }
+  body.only-no .chat:not(.has-no) { display: none; }
+
+  /* one design, opened: the picture and an inspector beside it */
+  #open { position: fixed; inset: 0; z-index: 20; display: none; background: var(--shade); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+  #open.on { display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
+  #open .view { display: grid; place-items: center; padding: 28px; min-width: 0; min-height: 0; }
+  #open .view img { max-width: 100%; max-height: calc(100vh - 56px); border-radius: 10px; box-shadow: 0 24px 70px rgba(0,0,0,.4); }
+  #open .view iframe { width: 100%; height: calc(100vh - 56px); border: 0; border-radius: 10px; background: #fff; }
+  #open aside { background: var(--bg); border-left: 1px solid var(--line); padding: 20px 18px; overflow: auto; user-select: text; -webkit-user-select: text; cursor: auto; }
+  #open .cause { display: inline-block; font: 500 11.5px/14px var(--ui); padding: 3px 8px; border-radius: 999px; background: var(--soft-2); color: var(--ink-2); }
+  #open .cause.no { background: var(--pen); color: #fff; }
+  #open .cause.alive { background: var(--ink); color: var(--bg); }
+  #open h3 { margin: 12px 0 6px; font: 400 19px/23px var(--serif); letter-spacing: -.02em; overflow-wrap: anywhere; }
+  #open .meta { font: 400 12.5px/17px var(--ui); color: var(--ink-3); }
+  #open .label { margin-top: 22px; font: 500 11px/13px var(--ui); color: var(--ink-3); }
+  #open blockquote { margin: 6px 0 0; font: 500 28px/1.15 var(--hand); }
+  #open .said-p { margin: 6px 0 0; font: 400 13.5px/19px var(--serif); color: var(--ink-2); }
+  #open .btn { margin-top: 22px; }
+  #open .close { position: absolute; top: 12px; right: 12px; width: 26px; height: 26px; border-radius: 50%; background: var(--soft-2); color: var(--ink-2); font-size: 15px; line-height: 1; }
+  @media (max-width: 820px) {
+    :root { --side-w: 0px; } #side { display: none; }
+    #open.on { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+    #open aside { border-left: 0; border-top: 1px solid var(--line); max-height: 44vh; }
+  }
+  @media (prefers-reduced-motion: reduce) { .photo, .photo img, .switch::after { transition: none; } }
+</style>
+</head>
+<body>
+<aside id="side">
+  <div class="brand">Iterations <span id="whose"></span></div>
+  <div class="seg" role="group" aria-label="View">
+    <button id="vAll" aria-pressed="true">Everything</button>
+    <button id="vDate" aria-pressed="false">By date</button>
+  </div>
+  <div class="cap">Projects</div>
+  <nav id="projects"></nav>
+  <div class="foot">
+    <div class="setting"><span>Only turned down</span><button class="switch" id="onlyNo" role="switch" aria-checked="false" aria-label="Only turned down"></button></div>
+    <button class="btn" id="again">Dig again</button>
+  </div>
+</aside>
+<div id="bar">
+  <div id="where"><b></b><span></span></div>
+  <div class="tools">
+    <button id="out" aria-label="Zoom out">−</button>
+    <button id="pct" title="Fit the width">100%</button>
+    <button id="in" aria-label="Zoom in">+</button>
+  </div>
+</div>
+<div id="stage"><div id="world"></div></div>
+<div id="empty"></div>
+<div id="daybar">
+  <div class="tools" id="step">
+    <button id="prev" aria-label="Earlier day">‹</button>
+    <button id="next" aria-label="Later day">›</button>
+  </div>
+  <div id="days" aria-label="Days"></div>
+</div>
+<div id="open" role="dialog" aria-modal="true">
+  <div class="view"></div>
+  <aside></aside>
+  <button class="close" aria-label="Close">×</button>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const h = (tag, props = {}, ...kids) => {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) { if (k === "class") el.className = v; else if (k in el) el[k] = v; else el.setAttribute(k, v); }
+  for (const k of kids) if (k != null && k !== "") el.append(k);
+  return el;
+};
+const day = (ms) => new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const longDay = (key) => new Date(`${key}T12:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+const keyOf = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const plural = (n, w) => `${n.toLocaleString()} ${w}${n === 1 ? "" : "s"}`;
+// the same small numbers every time for the same picture, so the board never reshuffles
+const rnd = (hash, i) => parseInt(String(hash).slice(i * 3, i * 3 + 3) || "7ff", 16) / 4095;
+const seedOf = (text) => [...String(text)].map((c) => (c.charCodeAt(0) % 16).toString(16)).join("").padEnd(18, "5a3c");
+
+// ---- things drawn by hand ---------------------------------------------------------------------
+const INK = 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"';
+const DRAWN = {
+  arrow1: `<svg viewBox="0 0 80 50"><path ${INK} stroke-width="2.2" d="M4 30C20 4 38 4 40 24S30 44 26 30 50 8 72 26M62 19l11 7-9 9"/></svg>`,
+  arrow2: `<svg viewBox="0 0 80 50"><path ${INK} stroke-width="2.2" d="M4 16C24 40 50 42 72 24M60 21l13 2-6 11"/></svg>`,
+  arrow3: `<svg viewBox="0 0 80 50"><path ${INK} stroke-width="2.2" d="M4 36C22 10 52 6 72 27M60 21l13 7-12 7"/></svg>`,
+  ring: `<svg viewBox="0 0 100 56" preserveAspectRatio="none"><path ${INK} stroke-width="2.4" vector-effect="non-scaling-stroke" d="M50 6C20 4 4 16 6 30c2 16 34 22 60 18s32-20 24-32C82 6 56 2 36 9"/></svg>`,
+  cross: `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><path ${INK} stroke-width="4" vector-effect="non-scaling-stroke" d="M8 12C40 38 62 58 92 90M90 10C60 40 38 62 10 92"/></svg>`,
+  squig: `<svg viewBox="0 0 200 14" preserveAspectRatio="none"><path ${INK} stroke-width="3" vector-effect="non-scaling-stroke" d="M2 8c10-8 18 6 28-1s18-7 28 0 20 7 30-2 22-2 30 2 20 4 30-2 30-2 50 1"/></svg>`,
+  star: `<svg viewBox="0 0 24 24" width="30" height="30"><path ${INK} stroke-width="1.8" d="M12 2l2.6 7 7.4.4-5.8 4.6 2 7.2L12 17l-6.2 4.2 2-7.2L2 9.4 9.4 9z"/></svg>`,
+  loop: `<svg viewBox="0 0 48 28" width="58" height="34"><path ${INK} stroke-width="2" d="M2 20C12 2 26 2 24 16S10 26 14 12 34 2 44 18"/></svg>`,
+  spark: `<svg viewBox="0 0 24 24" width="30" height="30"><path ${INK} stroke-width="1.8" d="M12 2v8M12 14v8M2 12h8M14 12h8M5 5l4 4M15 15l4 4M19 5l-4 4M9 15l-4 4"/></svg>`,
+  swirl: `<svg viewBox="0 0 30 30" width="34" height="34"><path ${INK} stroke-width="2" d="M15 15c0-3 5-3 5 1s-7 6-10 1 1-12 8-11 10 9 6 15"/></svg>`,
+};
+const drawn = (name, cls = "") => { const s = h("span", { class: cls }); s.innerHTML = DRAWN[name]; const svg = s.firstChild; if (cls) svg.setAttribute("class", cls); return svg; };
+
+// ---- the canvas: move and zoom ---------------------------------------------------------------
+const stage = $("#stage"), world = $("#world");
+const view = { x: 0, y: 0, k: 1 };
+let extent = { w: 1, h: 1 };
+function paint() {
+  world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.k})`;
+  // the dots follow the board, and never crowd: far out, every other one drops away
+  let gap = 26 * view.k;
+  while (gap < 14) gap *= 2;
+  stage.style.backgroundSize = `${gap}px ${gap}px`;
+  stage.style.backgroundPosition = `${view.x}px ${view.y}px`;
+  $("#pct").textContent = `${Math.round(view.k * 100)}%`;
+}
+function zoomAt(cx, cy, f) {
+  const k = Math.min(2.5, Math.max(0.03, view.k * f));
+  view.x = cx - (cx - view.x) * (k / view.k);
+  view.y = cy - (cy - view.y) * (k / view.k);
+  view.k = k; paint();
+}
+const mid = () => [stage.clientWidth / 2, stage.clientHeight / 2];
+// the whole width in view; reading a flow is a pinch away
+function fit() {
+  const w = stage.clientWidth;
+  view.k = Math.min(1, Math.max(0.03, (w - 80) / extent.w));
+  view.x = Math.max(40, (w - extent.w * view.k) / 2);
+  view.y = 36;
+  paint();
+}
+// Where the board opens: the title and the first projects at a size you can read. The whole
+// board is one click on the percentage away.
+function home() {
+  const w = stage.clientWidth;
+  view.k = Math.min(1, Math.max(0.24, (w - 80) / extent.w));
+  view.x = extent.w * view.k < w - 80 ? (w - extent.w * view.k) / 2 : 44;
+  view.y = 36;
+  paint();
+}
+function flyTo(el) {
+  const w = stage.clientWidth;
+  view.k = Math.min(0.9, Math.max(0.16, (w - 80) / (el.offsetWidth + 40)));
+  view.x = 40 - el.offsetLeft * view.k;
+  view.y = 30 - el.offsetTop * view.k;
+  world.style.transition = "transform .45s cubic-bezier(.16,1,.3,1)";
+  paint();
+  setTimeout(() => { world.style.transition = ""; }, 480);
+}
+stage.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const r = stage.getBoundingClientRect();
+  if (e.ctrlKey || e.metaKey) zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.012));
+  else { view.x -= e.deltaX; view.y -= e.deltaY; paint(); }
+}, { passive: false });
+let drag = null, moved = false;
+stage.addEventListener("pointerdown", (e) => { if (e.button === 0) { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; moved = false; } });
+addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!moved && Math.hypot(dx, dy) < 5) return;
+  moved = true; stage.classList.add("dragging");
+  view.x = drag.vx + dx; view.y = drag.vy + dy; paint();
+});
+addEventListener("pointerup", () => { drag = null; stage.classList.remove("dragging"); });
+$("#in").onclick = () => zoomAt(...mid(), 1.25);
+$("#out").onclick = () => zoomAt(...mid(), 0.8);
+$("#pct").onclick = fit;
+
+// ---- the board -------------------------------------------------------------------------------
+let data = null;      // everything dug up
+let mode = "all";     // "all": every day at once; "date": one day
+let picked = "";      // the day shown in "date"
+let days = [];        // [{ key, n }] every day with a screen, oldest first
+let all = [];         // every screen in view, in order, for the arrow keys
+let made = [];        // the projects on the board, for laying out again
+let focus = "";       // the one project that is open; none: every project, closed
+const SHOWN = 8;      // screens a beat shows before "more"
+// full pictures go by this Mac's other name, so they don't wait in line behind the small ones
+const far = `http://127.0.0.1:${location.port}`;
+const thumbOf = (e) => (e.t === "p" ? null : `/t/${e.hash}`); // a page shows itself, small
+const fullOf = (e) => `${far}/f/${e.hash}`;
+const sizeOf = (e) => {
+  const hgt = Math.round(104 + rnd(e.hash, 0) * 48);
+  const ratio = e.t === "p" ? 1.52 : e.w && e.h ? e.w / e.h : 1.5;
+  return { w: Math.round(Math.min(300, Math.max(60, hgt * ratio))), h: hgt };
+};
+const HL = ["var(--hl-1)", "var(--hl-2)", "var(--hl-3)", "var(--hl-4)"];
+
+function photo(e) {
+  const s = sizeOf(e);
+  const lean = (rnd(e.hash, 1) - 0.5) * 5, drop = (rnd(e.hash, 2) - 0.5) * 16;
+  const src = thumbOf(e);
+  const el = h("button", { class: `photo${e.no ? " no" : ""}${e.alive ? " alive" : ""}${e.src === "You pasted" ? " yours" : ""}`, type: "button", title: e.t === "p" ? e.title : e.src },
+    src ? h("img", { src, loading: "lazy", decoding: "async", alt: "", draggable: false }) : h("span", { class: "frame" }, h("iframe", { src: `/page/${e.hash}`, loading: "lazy", tabIndex: -1, title: "" })));
+  el.style.cssText = `width:${s.w + 10}px;height:${s.h + 10}px;margin:${Math.round(8 + rnd(e.hash, 3) * 10)}px ${Math.round(7 + rnd(e.hash, 4) * 12)}px;transform:translateY(${drop.toFixed(1)}px) rotate(${lean.toFixed(2)}deg)`;
+  if (e.alive) el.append(h("i", { class: "pin" }), h("span", { class: "kept" }, "kept ★"));
+  else if (e.no) el.append(drawn("cross", "cross"));
+  else if (rnd(e.hash, 4) > 0.7) el.append(h("i", { class: "tape" }));
+  el.onclick = () => { if (!moved) show(e); };
+  return el;
+}
+
+function note(raw, tag, no, key) {
+  // a file you attached reads as "a file", not its whole path
+  const text = String(raw).replace(/@"[^"]*"|@[~/]\S*|(?:\/Users|~)\/\S+/g, "(a file)").replace(/\s+/g, " ").trim() || "(a file)";
+  const el = h("div", { class: `note${no ? " no" : ""}`, title: text }, h("span", { class: "tag" }, tag), h("p", {}, text));
+  el.style.setProperty("--hl", HL[Math.floor(rnd(key, 1) * 4) % 4]);
+  el.style.transform = `rotate(${((rnd(key, 2) - 0.5) * 3).toFixed(2)}deg)`;
+  return el;
+}
+
+// A chat as beats: the screens the session made, then what you said about them.
+function beatsOf(events) {
+  const beats = [];
+  let cur = { shots: [], said: null };
+  for (const e of events) {
+    if (e.t === "s") { if (cur.shots.length) { cur.said = e; beats.push(cur); cur = { shots: [], said: null }; } }
+    else cur.shots.push(e);
+  }
+  if (cur.shots.length) beats.push(cur);
+  return beats;
+}
+
+function pile(b) {
+  const el = h("div", { class: "pile" });
+  const fill = () => {
+    // what's shown first: the ones that matter (kept, turned down), then the rest in order
+    const first = b.open ? b.shots : [...b.shots.filter((e) => e.alive || e.no), ...b.shots.filter((e) => !e.alive && !e.no)].slice(0, SHOWN).sort((x, y) => b.shots.indexOf(x) - b.shots.indexOf(y));
+    el.replaceChildren(...first.map(photo));
+    // as wide as its screens side by side, up to a width that still reads as one pile
+    const run = first.reduce((n, e) => n + sizeOf(e).w + 10 + 2 * Math.round(7 + rnd(e.hash, 4) * 12), 0) + (b.shots.length > SHOWN ? 150 : 0);
+    el.style.width = `${Math.min(b.open ? 1500 : 1000, run + 2)}px`;
+    if (b.shots.length > SHOWN) {
+      const more = h("button", { class: "more", type: "button" }, b.open ? "show fewer" : `+ ${b.shots.length - SHOWN} more`);
+      more.onclick = () => { if (moved) return; b.open = !b.open; fill(); place(); };
+      el.append(more);
+    }
+  };
+  fill();
+  return el;
+}
+
+function flow(c, p) {
+  const beats = beatsOf(c.events);
+  const out = h("div", { class: "flow" });
+  const seed = seedOf(c.id);
+  if (mode === "all" && !c.pages) {
+    out.append(h("div", { class: "start" }, drawn("ring"), "start"));
+    if (c.brief) out.append(note(c.brief, "it began with", false, seed));
+    out.append(drawn(`arrow${1 + Math.floor(rnd(seed, 3) * 3) % 3}`, "arrow"));
+  }
+  beats.forEach((b, i) => {
+    for (const e of b.shots) { e.chat = c; e.plot = p; all.push(e); }
+    const no = b.shots.some((e) => e.no);
+    const beat = h("div", { class: `beat${no ? " has-no" : ""}` },
+      h("div", { class: "num" }, drawn("ring"), String(i + 1)),
+      pile(b),
+      b.said ? note(b.said.text, b.said.no ? "then I said no" : "then I said", b.said.no, seedOf(b.said.text + i)) : null);
+    out.append(beat);
+    if (i < beats.length - 1) out.append(drawn(`arrow${1 + Math.floor(rnd(seedOf(c.id + i), 2) * 3) % 3}`, "arrow"));
+  });
+  if (mode === "all" && !c.pages) out.append(h("div", { class: "end" }, "the end", drawn(["star", "spark", "swirl"][Math.floor(rnd(seed, 4) * 3) % 3], "doodle")));
+  return { el: out, beats };
+}
+
+// A project closed, for the board of every project: what stood at the end of each chat.
+function cover(p) {
+  const kept = p.chats.flatMap((c) => c.events.filter((e) => e.alive)).slice(0, 6);
+  // with few chats, the newest chat's last screens fill the pile out
+  const rest = p.chats.flatMap((c) => c.events.filter((e) => e.t !== "s" && !e.alive).slice(-3));
+  const shots = [...kept, ...rest].slice(0, 5);
+  const pile = h("div", { class: "pile" }, ...shots.map(photo));
+  const rounds = p.chats.reduce((n, c) => n + beatsOf(c.events).length, 0);
+  const el = h("section", { class: "plot cover", tabIndex: 0, role: "button" },
+    h("header", {}, h("h2", {}, p.name), h("span", {}, `${plural(p.screens, "screen")} · ${plural(p.chats.length, "chat")}${p.rejected ? ` · ${p.rejected} turned down` : ""}`)),
+    pile,
+    h("div", { class: "open" }, `${plural(rounds, "round")}, start to end`, drawn("arrow2")));
+  const open = () => { if (!moved) { focus = p.key; render(); } };
+  el.onclick = open;
+  el.onkeydown = (e) => { if (e.key === "Enter") open(); };
+  return el;
+}
+
+// What's on the board: every chat whole, or only what happened on the picked day.
+function scope() {
+  if (mode === "all") return data.plots;
+  const out = [];
+  for (const p of data.plots) {
+    const chats = [];
+    for (const c of p.chats) {
+      const events = c.events.filter((e) => keyOf(e.at || c.start) === picked);
+      const screens = events.filter((e) => e.t !== "s").length;
+      if (screens) chats.push({ ...c, events, shown: screens });
+    }
+    if (chats.length) out.push({ ...p, chats, screens: chats.reduce((n, c) => n + c.shown, 0), rejected: chats.reduce((n, c) => n + c.events.filter((e) => e.no && e.t !== "s").length, 0) });
+  }
+  return out.sort((a, b) => b.screens - a.screens);
+}
+
+function render() {
+  const d = data;
+  const whose = /s$/i.test(d.name) ? `${d.name}'` : `${d.name}'s`;
+  document.title = `${whose} iterations`;
+  $("#whose").textContent = d.demo ? "sample work" : whose;
+  document.body.classList.toggle("by-date", mode === "date");
+  $("#vAll").setAttribute("aria-pressed", mode === "all");
+  $("#vDate").setAttribute("aria-pressed", mode === "date");
+  all = []; made = [];
+  world.replaceChildren();
+  world.classList.toggle("solo", !!focus);
+  $("#projects").replaceChildren();
+  if (!d.total) {
+    $("#empty").style.display = "grid";
+    $("#empty").textContent = "Nothing here yet. No chat on this Mac has a screen in it.";
+    return;
+  }
+  $("#empty").style.display = "none";
+  const inScope = scope();
+  if (focus && !data.plots.some((p) => p.key === focus)) focus = "";
+  // one project open: only it is on the board, so there is little to draw and move
+  const plots = focus ? inScope.filter((p) => p.key === focus) : inScope;
+  const closed = mode === "all" && !focus; // every project at once shows them closed
+  const shown = plots.reduce((n, p) => n + p.screens, 0);
+  const when = mode === "all" ? "" : `${longDay(picked)} · `;
+  $("#where b").textContent = focus ? focus : mode === "all" ? "Everything" : longDay(picked);
+  $("#where span").textContent = (focus
+    ? `${focus && mode === "date" ? when : ""}${plural(shown, "screen")} in ${plural(plots.reduce((n, p) => n + p.chats.length, 0), "chat")}`
+    : mode === "all"
+      ? `${plural(d.total, "screen")} from ${plural(d.chats, "chat")} in ${plural(d.plots.length, "project")}`
+      : `${plural(shown, "screen")} in ${plural(plots.length, "project")}`) + (d.demo ? " · sample work, nothing of yours is read" : "");
+
+  const everything = h("button", { type: "button" }, h("b", {}, "All projects"), h("i", {}, inScope.reduce((n, p) => n + p.screens, 0).toLocaleString()));
+  everything.setAttribute("aria-current", !focus);
+  everything.onclick = () => { focus = ""; render(); };
+  $("#projects").append(everything, h("hr"));
+  for (const p of inScope) {
+    const row = h("button", { type: "button", title: p.name }, h("b", {}, p.name), p.rejected ? h("u", { title: `${p.rejected} turned down` }) : null, h("i", {}, p.screens.toLocaleString()));
+    row.setAttribute("aria-current", focus === p.key);
+    row.onclick = () => { focus = p.key; render(); };
+    $("#projects").append(row);
+  }
+
+  const mast = h("div", { class: "mast" },
+    h("h1", {}, h("em", {}, `${whose} `), "iterations"),
+    drawn("squig", "squig"),
+    h("p", {}, closed
+      ? "every project, with what stood at the end of each chat. open one to see how it got there, start to end."
+      : mode === "date"
+        ? `${longDay(picked).toLowerCase()}: what got made, and what you said about it.`
+        : "start to end. grey got passed over, crossed out got a no, the pinned one is what stood at the end."));
+  world.append(mast);
+  if (focus && !plots.length) {
+    $("#empty").style.display = "grid";
+    $("#empty").textContent = `Nothing from ${focus} on this day.`;
+  }
+
+  for (const p of closed ? plots : []) {
+    const el = cover(p);
+    el.style.width = "820px";
+    world.append(el);
+    made.push({ el, width: 820, name: p.name });
+  }
+  for (const p of closed ? [] : plots) {
+    const chats = p.chats.map((c, ci) => {
+      const f = flow(c, p);
+      const no = c.events.filter((e) => e.no && e.t !== "s").length;
+      const span = day(c.start) === day(c.end) ? day(c.start) : `${day(c.start)} → ${day(c.end)}`;
+      const count = mode === "date" ? `${plural(c.shown, "screen")} this day, of ${c.screens}` : plural(c.screens, "screen");
+      const seed = seedOf(c.id);
+      const el = h("div", { class: `chat${no ? " has-no" : ""}` },
+        h("div", { class: "head" }, h("h3", {}, c.title), rnd(seed, 0) > 0.45 ? drawn(["loop", "star", "spark", "swirl"][Math.floor(rnd(seed, 1) * 4) % 4], "doodle") : null),
+        h("div", { class: "when" }, `${span} · ${count} · ${plural(f.beats.length, "round")}${no ? ` · ${no} turned down` : ""}${c.gone ? " · chat no longer on this Mac" : ""}`),
+        f.el);
+      el.style.setProperty("--hl", HL[(ci + Math.floor(rnd(seed, 2) * 4)) % 4]);
+      return { el, beats: f.beats };
+    });
+    // wide enough that a chat's flow runs a few rounds across before it turns
+    let area = 0;
+    for (const c of chats) for (const b of c.beats) { const n = Math.min(b.shots.length, SHOWN + 1); const w = Math.min(1000, n * 200) + (b.said ? 270 : 0) + 140; area += w * (Math.ceil(n * 200 / 1000) * 190 + 70); }
+    const width = Math.round(Math.min(3800, Math.max(1500, Math.sqrt(area * 1.7))));
+    const plot = h("section", { class: "plot" },
+      h("header", {}, h("h2", {}, p.name), h("span", {}, `${plural(p.screens, "screen")} · ${plural(p.chats.length, "chat")}${p.rejected ? ` · ${p.rejected} turned down` : ""}`)),
+      ...chats.map((c) => c.el));
+    plot.style.width = `${width}px`;
+    world.append(plot);
+    made.push({ el: plot, width, name: p.name });
+  }
+  place(mast);
+  marks();
+  requestAnimationFrame(home);
+}
+
+// The projects laid out loosely: side by side on uneven shelves, none lined up with the next.
+function place(mast = world.querySelector(".mast")) {
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  const area = made.reduce((n, m) => n + (m.width + 320) * (m.el.offsetHeight + 360), 0);
+  // closed projects sit closer together: there is less to keep apart
+  const tight = !!world.querySelector(".cover");
+  const gapX = tight ? 150 : 320, gapY = tight ? 170 : 380;
+  const wide = Math.max(tight ? 3000 : 2400, Math.sqrt(area * (sw / Math.max(400, sh)) * 0.7));
+  const top0 = (mast?.offsetHeight || 0) + 190;
+  let x = 0, y = top0, shelf = 0, right = mast?.offsetWidth || 0;
+  made.forEach((m, i) => {
+    const hgt = m.el.offsetHeight;
+    const nudge = rnd(seedOf(m.name), 1);
+    if (x && x + m.width > wide) { x = 0; y += shelf + gapY; shelf = 0; }
+    const top = y + Math.round(nudge * (tight ? 90 : 220)) * (x ? 1 : 0.3);
+    m.el.style.left = `${Math.round(x + (i % 2 ? 90 : 0))}px`;
+    m.el.style.top = `${Math.round(top)}px`;
+    right = Math.max(right, x + m.width + 90);
+    shelf = Math.max(shelf, top - y + hgt);
+    x += m.width + gapX + Math.round(nudge * (tight ? 70 : 180));
+  });
+  extent = { w: right, h: y + shelf };
+  world.style.width = `${extent.w}px`;
+  world.style.height = `${extent.h}px`;
+}
+
+// ---- the days -------------------------------------------------------------------------------
+function countDays() {
+  const n = new Map();
+  for (const p of data.plots) for (const c of p.chats) for (const e of c.events) if (e.t !== "s") { const k = keyOf(e.at || c.start); n.set(k, (n.get(k) || 0) + 1); }
+  days = [...n].map(([key, count]) => ({ key, n: count })).sort((a, b) => (a.key < b.key ? -1 : 1));
+  const most = Math.max(1, ...days.map((d) => d.n));
+  const strip = $("#days");
+  strip.replaceChildren();
+  let month = "";
+  days.forEach((d, i) => {
+    const m = d.key.slice(0, 7);
+    // a gap wider than a week shows as a gap
+    if (i && (new Date(d.key) - new Date(days[i - 1].key)) / 864e5 > 7) strip.append(h("div", { class: "day gap" }));
+    const el = h("button", { class: "day", type: "button", title: `${longDay(d.key)}, ${plural(d.n, "screen")}` }, h("i", {}));
+    el.dataset.key = d.key;
+    el.firstChild.style.height = `${Math.round(5 + 30 * Math.sqrt(d.n / most))}px`;
+    if (m !== month) { month = m; el.append(h("b", {}, new Date(`${d.key}T12:00`).toLocaleDateString("en-GB", { month: "short", year: "2-digit" }))); }
+    el.onclick = () => pick(d.key);
+    strip.append(el);
+  });
+  strip.scrollLeft = strip.scrollWidth;
+}
+function marks() {
+  for (const el of $("#days").children) el.classList.toggle("on", mode === "date" && el.dataset.key === picked);
+  const on = $("#days .on");
+  if (on) on.scrollIntoView({ block: "nearest", inline: "nearest" });
+  const i = days.findIndex((d) => d.key === picked);
+  $("#prev").disabled = i <= 0;
+  $("#next").disabled = i < 0 || i >= days.length - 1;
+}
+function pick(key) { mode = "date"; picked = key; render(); }
+const stepDay = (by) => { const i = days.findIndex((d) => d.key === picked); if (days[i + by]) pick(days[i + by].key); };
+$("#prev").onclick = () => stepDay(-1);
+$("#next").onclick = () => stepDay(1);
+$("#vAll").onclick = () => { mode = "all"; render(); };
+$("#vDate").onclick = () => pick(picked || days[days.length - 1]?.key || "");
+
+// ---- one design, opened ----------------------------------------------------------------------
+const box = $("#open");
+let at = -1;
+const clock = (ms) => `${day(ms)}, ${new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+function show(e) {
+  at = all.indexOf(e);
+  const evs = e.chat.events;
+  // what you typed next in that chat, after this screen
+  const next = e.t === "p" ? (e.text ? { text: e.text } : null) : evs.slice(evs.indexOf(e) + 1).find((x) => x.t === "s");
+  const cause = e.alive ? "Still standing" : e.no ? "Turned down" : e.src === "You pasted" ? "You pasted this" : e.t === "p" ? "Replaced" : "Passed over";
+  const goto = mode === "all" && e.at ? h("button", { class: "btn" }, `See all of ${day(e.at)}`) : null;
+  if (goto) goto.onclick = () => { hide(); pick(keyOf(e.at)); };
+  box.querySelector(".view").replaceChildren(e.t === "p"
+    ? h("iframe", { src: `/page/${e.hash}`, title: e.title })
+    : h("img", { src: fullOf(e), alt: "" }));
+  box.querySelector("aside").replaceChildren(...[
+    h("div", { class: `cause${e.no ? " no" : ""}${e.alive ? " alive" : ""}` }, cause),
+    h("h3", {}, e.t === "p" ? e.title : e.chat.title),
+    h("div", { class: "meta" }, `${e.plot.name} · ${e.at ? clock(e.at) : "date unknown"}`),
+    e.t === "p" ? null : h("div", { class: "meta" }, `${e.src} · one of ${plural(e.chat.screens, "screen")} in this chat`),
+    next ? h("div", { class: "label" }, e.src === "You pasted" ? "What you said with it" : "What you said next") : null,
+    next ? h("blockquote", {}, next.text) : null,
+    e.caption ? h("div", { class: "label" }, "How it was presented") : null,
+    e.caption ? h("p", { class: "said-p" }, e.caption) : null,
+    goto].filter(Boolean));
+  box.classList.add("on");
+  box.querySelector(".close").focus();
+}
+const hide = () => { box.classList.remove("on"); box.querySelector(".view").replaceChildren(); };
+box.querySelector(".close").onclick = hide;
+box.querySelector(".view").onclick = (e) => { if (e.target === e.currentTarget) hide(); };
+addEventListener("keydown", (e) => {
+  if (box.classList.contains("on")) {
+    const shown = document.body.classList.contains("only-no") ? all.filter((g) => g.no) : all;
+    const i = shown.indexOf(all[at]);
+    // Space closes too, as in Quick Look: in a full screen window Chrome answers every Escape
+    // with its own "press and hold esc" bubble, which a page can't turn off
+    if (e.key === "Escape" || e.key === " ") { e.preventDefault(); hide(); }
+    else if (e.key === "ArrowRight" && shown[i + 1]) show(shown[i + 1]);
+    else if (e.key === "ArrowLeft" && shown[i - 1]) show(shown[i - 1]);
+    return;
+  }
+  if (e.key === "+" || e.key === "=") zoomAt(...mid(), 1.25);
+  else if (e.key === "-") zoomAt(...mid(), 0.8);
+  else if (e.key === "0") fit();
+  else if (mode === "date" && e.key === "ArrowLeft") stepDay(-1);
+  else if (mode === "date" && e.key === "ArrowRight") stepDay(1);
+  else if (e.key === "Escape" && focus) { focus = ""; render(); }
+  else if (mode === "date" && e.key === "Escape") { mode = "all"; render(); }
+});
+
+$("#onlyNo").onclick = (e) => {
+  const on = document.body.classList.toggle("only-no");
+  e.currentTarget.setAttribute("aria-checked", on);
+  place(); home();
+};
+const load = (again) => fetch(`/api/board${again ? "?again" : ""}`).then((r) => r.json()).then((d) => { data = d; countDays(); render(); });
+$("#again").onclick = () => { $("#again").textContent = "Digging…"; load(true).finally(() => { $("#again").textContent = "Dig again"; }); };
+addEventListener("resize", () => { paint(); });
+document.fonts?.ready.then(() => { if (data) { place(); home(); } });
+load();
+</script>
+</body>
+</html>

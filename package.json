@@ -1,0 +1,22 @@
+{
+  "name": "@rayzorzrb/iterations",
+  "version": "0.5.1",
+  "description": "Every screen from every Claude Code chat, start to end, on one board: what got passed over, what you turned down, what stood at the end, and what you said in between. Local only, Mac.",
+  "license": "MIT",
+  "author": "Rahul Bhadoriya",
+  "homepage": "https://github.com/rayzorzrb/iterations#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/rayzorzrb/iterations.git" },
+  "bugs": { "url": "https://github.com/rayzorzrb/iterations/issues" },
+  "keywords": ["claude", "claude-code", "design", "design-process", "iterations", "canvas", "macos"],
+  "type": "module",
+  "os": ["darwin"],
+  "engines": { "node": ">=20" },
+  "bin": { "iterations": "bin/iterations.mjs" },
+  "files": ["bin", "src", "docs", "LICENSE", "README.md"],
+  "publishConfig": { "access": "public" },
+  "scripts": {
+    "start": "node bin/iterations.mjs",
+    "demo": "node bin/iterations.mjs --demo",
+    "audit": "node scripts/audit.mjs"
+  }
+}
