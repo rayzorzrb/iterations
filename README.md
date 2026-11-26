@@ -11,7 +11,7 @@ it back, from what your chats already left behind.
 ## Try it
 
 ```bash
-npx github:rayzorzrb/iterations --demo
+npx @rayzorzrb/iterations --demo
 ```
 
 The demo is three made-up projects drawn in code. It reads nothing of yours.
@@ -38,7 +38,7 @@ you said about it, in your own words.
 You need a Mac, Node 20 or newer, and Claude Code. Chats that ran in the cloud don't reach it.
 
 ```bash
-npx github:rayzorzrb/iterations
+npx @rayzorzrb/iterations
 ```
 
 The first run reads every chat on the Mac, which takes a little while. It opens in a window of
